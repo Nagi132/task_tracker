@@ -48,6 +48,17 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    function setFormMode(mode) {
+        const submitButton = document.getElementById('add-task');
+        if (mode === 'edit') {
+            submitButton.textContent = 'Save Changes';
+            currentMode = 'edit';
+        } else {
+            submitButton.textContent = 'Add Task';
+            currentMode = 'add';
+        }
+    }
+    
     // Function to edit a task
     function editEvent(eventId, event) {
         document.getElementById('task-input').value = event.title;
@@ -59,8 +70,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             document.getElementById('end-date-section').style.display = 'none';
         }
-        document.getElementById('add-task').textContent = 'Save Changes';
-        currentMode = 'edit';
+        // document.getElementById('add-task').textContent = 'Save Changes';
+        // currentMode = 'edit';
+        setFormMode('edit');
         currentEditingEventId = eventId;
         document.getElementById('eventModal').style.display = 'none';
     }
@@ -82,6 +94,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(err => console.error('Error deleting task:', err));
         }
+    }
+
+    // Function to update the calendar after adding or editing a task
+    function updateCalendar(task) {
+        let existingEvent = calendar.getEventById(task._id);
+        if (existingEvent) {
+            existingEvent.remove(); // Remove the existing event to prevent duplicates
+        }
+
+        calendar.addEvent({
+            id: task._id,
+            title: task.description,
+            start: task.startDate,
+            end: task.endDate || task.startDate,
+        });
+
+        resetForm();
+    }
+    // Function to reset the form
+    function resetForm() {
+        document.getElementById('task-form').reset();
+        document.getElementById('end-date-section').style.display = 'none';
+        document.getElementById('add-end-date-btn').style.display = 'block';
+        // currentModal = 'add';
+        setFormMode('add');
+        currentEditingEventId = null;
     }
 
     document.getElementById('add-end-date-btn').addEventListener('click', function () {
@@ -109,21 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify(newTask)
             })
                 .then(response => response.json())
-                .then(task => {
-                    calendar.addEvent({
-                        id: task._id,
-                        title: task.description,
-                        start: task.startDate,
-                        end: task.endDate || task.startDate,
-                    });
-
-                    // Reset the form
-                    document.getElementById('task-form').reset();
-                    document.getElementById('end-date-section').style.display = 'none';
-                    document.getElementById('add-end-date-btn').style.display = 'block';
-                    currentEditingEventId = null;
-                    currentMode = 'add';
-                })
+                .then(task => updateCalendar(task))
                 .catch(err => console.error('Error creating task:', err));
         } else if (currentMode === 'edit' && currentEditingEventId) {
             // Update the task in the backend
@@ -135,19 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify(newTask)
             })
                 .then(response => response.json())
-                .then(task => {
-                    const event = calendar.getEventById(currentEditingEventId);
-                    event.setProp('title', task.description);
-                    event.setStart(task.startDate);
-                    event.setEnd(task.endDate || task.startDate);
-
-                    // Reset the form
-                    document.getElementById('task-form').reset();
-                    document.getElementById('end-date-section').style.display = 'none';
-                    document.getElementById('add-end-date-btn').style.display = 'block';
-                    currentEditingEventId = null;
-                    currentMode = 'add';
-                })
+                .then(task => updateCalendar(task))
                 .catch(err => console.error('Error updating task:', err));
         }
     });
